@@ -2,9 +2,12 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Sparkles, MessageSquare, Shield, Brain, ArrowDown, ChevronRight } from 'lucide-react';
+import { Send, Sparkles, MessageSquare, Shield, Brain, ArrowDown, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import Image from 'next/image';
 
 export default function AuraPage() {
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([]);
@@ -20,7 +23,7 @@ export default function AuraPage() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isTyping]);
 
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
@@ -42,6 +45,9 @@ export default function AuraPage() {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: userMessage,
+        config: {
+          systemInstruction: "You are Aura, a minimalist AI. You can generate images by outputting a Markdown image tag in the format ![Image](https://image.pollinations.ai/prompt/DESCRIPTION?width=1024&height=1024&nologo=true) where DESCRIPTION is a URL-encoded detailed prompt. If the user asks to draw or see something, generate this tag. Keep your text responses brief and elegant."
+        }
       });
       const text = response.text || 'Forgive me, I returned an empty response.';
       setMessages(prev => [...prev, { role: 'ai', content: text }]);
@@ -114,7 +120,7 @@ export default function AuraPage() {
                 { icon: Shield, title: "Private by Design", desc: "Your data is ephemeral and encrypted." },
                 { icon: MessageSquare, title: "Fluent Flow", desc: "Natural, nuanced conversations." }
               ].map((feature, i) => (
-                <div key={i} className="p-8 rounded-3xl border border-zinc-900 bg-zinc-950/50 hover:border-zinc-800 transition-all group">
+                <div key={i} className="p-8 rounded-3xl border border-zinc-900 bg-zinc-950/50 hover:border-zinc-800 transition-all group cursor-pointer">
                   <feature.icon className="w-6 h-6 mb-4 text-zinc-500 group-hover:text-zinc-100 transition-colors" />
                   <h3 className="font-medium mb-2">{feature.title}</h3>
                   <p className="text-sm text-zinc-500 leading-relaxed">{feature.desc}</p>
@@ -131,7 +137,7 @@ export default function AuraPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
-                    "flex max-w-[80%] flex-col gap-2",
+                    "flex max-w-[90%] flex-col gap-2",
                     msg.role === 'user' ? "ml-auto items-end" : "items-start"
                   )}
                 >
@@ -141,7 +147,26 @@ export default function AuraPage() {
                       ? "bg-zinc-100 text-zinc-950 rounded-tr-none" 
                       : "bg-zinc-900 text-zinc-100 rounded-tl-none border border-zinc-800"
                   )}>
-                    {msg.content}
+                    <div className="markdown-body">
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          img: ({ node, ...props }) => (
+                            <div className="mt-4 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 shadow-lg">
+                              <img 
+                                {...props} 
+                                referrerPolicy="no-referrer"
+                                className="w-full h-auto object-cover hover:scale-105 transition-transform duration-700"
+                                loading="lazy"
+                              />
+                            </div>
+                          ),
+                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                   <span className="text-[10px] uppercase tracking-widest text-zinc-600 font-medium px-1">
                     {msg.role === 'user' ? 'Inquiry' : 'Aura'}
