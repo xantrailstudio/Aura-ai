@@ -13,7 +13,8 @@ export default function AuraPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Initialize Gemini
-  const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || '' });
+  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -23,6 +24,14 @@ export default function AuraPage() {
 
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
+
+    if (!apiKey) {
+      setMessages(prev => [...prev, { 
+        role: 'ai', 
+        content: 'I require a connection to the neural network to proceed. Please ensure the NEXT_PUBLIC_GEMINI_API_KEY is configured in the Secrets panel.' 
+      }]);
+      return;
+    }
 
     const userMessage = input.trim();
     setInput('');
@@ -36,9 +45,17 @@ export default function AuraPage() {
       });
       const text = response.text || 'Forgive me, I returned an empty response.';
       setMessages(prev => [...prev, { role: 'ai', content: text }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating response:', error);
-      setMessages(prev => [...prev, { role: 'ai', content: 'Forgive me, I encountered a disturbance in the flow. Please try again.' }]);
+      let errorMessage = 'Forgive me, I encountered a disturbance in the flow. Please try again.';
+      
+      if (error?.message?.includes('API_KEY_INVALID')) {
+        errorMessage = 'The provided API key is invalid. Please check your configuration in the Secrets panel.';
+      } else if (error?.message?.includes('model not found')) {
+        errorMessage = 'The neural bridge is still being constructed. (Model not found error).';
+      }
+      
+      setMessages(prev => [...prev, { role: 'ai', content: errorMessage }]);
     } finally {
       setIsTyping(false);
     }
